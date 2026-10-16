@@ -1,0 +1,46 @@
+{
+  "name": "class-manager-electron",
+  "version": "1.1.0",
+  "description": "班主任学生管理系统桌面壳",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^33.2.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.classmanager.app",
+    "productName": "班主任学生管理系统",
+    "directories": {
+      "output": "../dist/electron"
+    },
+    "files": [
+      "main.js",
+      "preload.js"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend/dist/backend",
+        "to": "backend"
+      },
+      {
+        "from": "../frontend/dist",
+        "to": "frontend"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "班主任学生管理系统"
+    }
+  }
+}
