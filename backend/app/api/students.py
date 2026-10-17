@@ -100,6 +100,108 @@ def create_student(
     return ok(serialize_student(s), message="建档成功")
 
 
+# ---------- 导入 / 导出 / 模板（静态路由需在动态路由之前定义） ----------
+@router.get("/template")
+def download_template(user: SysUser = Depends(get_current_user)):
+    headers = [
+        "学号", "姓名", "性别", "出生日期", "身份证号", "民族", "政治面貌",
+        "籍贯", "生源地", "手机号", "家庭住址", "紧急联系人", "紧急联系电话",
+        "家庭情况备注",
+    ]
+    rows = [["2026001", "张三", "男", "2006-01-15", "", "汉族", "群众", "", "", "", "", "", "", ""]]
+    content = export_rows_to_xlsx(headers, rows, "学生档案模板")
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=students_template.xlsx"},
+    )
+
+
+@router.post("/import")
+async def import_students(
+    file: UploadFile = File(...),
+    class_id: int | None = Query(None),
+    user: SysUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    cid = _get_class_id(db, user, class_id)
+    content = await file.read()
+    rows = parse_xlsx(content)
+    if not rows:
+        raise BizError("文件为空或格式错误", 400)
+    success, errors = 0, []
+    for idx, r in enumerate(rows, start=2):
+        student_no = str(r.get("学号", "") or "").strip()
+        name = str(r.get("姓名", "") or "").strip()
+        gender = str(r.get("性别", "") or "").strip()
+        if not student_no or not name or not gender:
+            errors.append({"row": idx, "reason": "学号/姓名/性别为必填"})
+            continue
+        if gender not in ("男", "女"):
+            errors.append({"row": idx, "reason": f"性别无效: {gender}"})
+            continue
+        if db.query(StudentProfile).filter(
+            StudentProfile.class_id == cid,
+            StudentProfile.student_no == student_no,
+            StudentProfile.deleted_at.is_(None),
+        ).first():
+            errors.append({"row": idx, "reason": f"学号 {student_no} 已存在"})
+            continue
+        db.add(
+            StudentProfile(
+                student_no=student_no,
+                name=name,
+                gender=gender,
+                birth_date=_parse_date(r.get("出生日期")),
+                id_card=str(r.get("身份证号", "") or "").strip() or None,
+                nation=str(r.get("民族", "") or "").strip() or None,
+                political=str(r.get("政治面貌", "") or "").strip() or None,
+                native_place=str(r.get("籍贯", "") or "").strip() or None,
+                origin=str(r.get("生源地", "") or "").strip() or None,
+                phone=str(r.get("手机号", "") or "").strip() or None,
+                address=str(r.get("家庭住址", "") or "").strip() or None,
+                emergency_name=str(r.get("紧急联系人", "") or "").strip() or None,
+                emergency_phone=str(r.get("紧急联系电话", "") or "").strip() or None,
+                family_note=str(r.get("家庭情况备注", "") or "").strip() or None,
+                class_id=cid,
+            )
+        )
+        success += 1
+    db.commit()
+    return ok({"success": success, "errors": errors}, message=f"成功导入 {success} 条")
+
+
+@router.get("/export")
+def export_students(
+    class_id: int | None = None,
+    user: SysUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    cid = _get_class_id(db, user, class_id)
+    students = (
+        db.query(StudentProfile)
+        .filter(StudentProfile.class_id == cid, StudentProfile.deleted_at.is_(None))
+        .order_by(StudentProfile.student_no)
+        .all()
+    )
+    headers = ["学号", "姓名", "性别", "出生日期", "民族", "政治面貌", "籍贯", "生源地", "手机号", "家庭住址"]
+    rows = [
+        [
+            s.student_no, s.name, s.gender,
+            s.birth_date.isoformat() if s.birth_date else "",
+            s.nation or "", s.political or "", s.native_place or "",
+            s.origin or "", s.phone or "", s.address or "",
+        ]
+        for s in students
+    ]
+    content = export_rows_to_xlsx(headers, rows, "花名册")
+    return Response(
+        content=content,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=roster.xlsx"},
+    )
+
+
 @router.get("/{student_id}")
 def get_student(
     student_id: int,
@@ -172,78 +274,6 @@ def add_family(
     return ok(None, message="已添加")
 
 
-# ---------- 导入 / 导出 / 模板 ----------
-@router.get("/template")
-def download_template(user: SysUser = Depends(get_current_user)):
-    headers = [
-        "学号", "姓名", "性别", "出生日期", "身份证号", "民族", "政治面貌",
-        "籍贯", "生源地", "手机号", "家庭住址", "紧急联系人", "紧急联系电话",
-        "家庭情况备注",
-    ]
-    rows = [["2026001", "张三", "男", "2006-01-15", "", "汉族", "群众", "", "", "", "", "", "", ""]]
-    content = export_rows_to_xlsx(headers, rows, "学生档案模板")
-    return Response(
-        content=content,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=students_template.xlsx"},
-    )
-
-
-@router.post("/import")
-async def import_students(
-    file: UploadFile = File(...),
-    class_id: int | None = Query(None),
-    user: SysUser = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    cid = _get_class_id(db, user, class_id)
-    content = await file.read()
-    rows = parse_xlsx(content)
-    if not rows:
-        raise BizError("文件为空或格式错误", 400)
-    required = ["学号", "姓名", "性别"]
-    success, errors = 0, []
-    for idx, r in enumerate(rows, start=2):
-        student_no = str(r.get("学号", "") or "").strip()
-        name = str(r.get("姓名", "") or "").strip()
-        gender = str(r.get("性别", "") or "").strip()
-        if not student_no or not name or not gender:
-            errors.append({"row": idx, "reason": "学号/姓名/性别为必填"})
-            continue
-        if gender not in ("男", "女"):
-            errors.append({"row": idx, "reason": f"性别无效: {gender}"})
-            continue
-        if db.query(StudentProfile).filter(
-            StudentProfile.class_id == cid,
-            StudentProfile.student_no == student_no,
-            StudentProfile.deleted_at.is_(None),
-        ).first():
-            errors.append({"row": idx, "reason": f"学号 {student_no} 已存在"})
-            continue
-        db.add(
-            StudentProfile(
-                student_no=student_no,
-                name=name,
-                gender=gender,
-                birth_date=_parse_date(r.get("出生日期")),
-                id_card=str(r.get("身份证号", "") or "").strip() or None,
-                nation=str(r.get("民族", "") or "").strip() or None,
-                political=str(r.get("政治面貌", "") or "").strip() or None,
-                native_place=str(r.get("籍贯", "") or "").strip() or None,
-                origin=str(r.get("生源地", "") or "").strip() or None,
-                phone=str(r.get("手机号", "") or "").strip() or None,
-                address=str(r.get("家庭住址", "") or "").strip() or None,
-                emergency_name=str(r.get("紧急联系人", "") or "").strip() or None,
-                emergency_phone=str(r.get("紧急联系电话", "") or "").strip() or None,
-                family_note=str(r.get("家庭情况备注", "") or "").strip() or None,
-                class_id=cid,
-            )
-        )
-        success += 1
-    db.commit()
-    return ok({"success": success, "errors": errors}, message=f"成功导入 {success} 条")
-
-
 def _parse_date(v):
     if v is None:
         return None
@@ -258,34 +288,3 @@ def _parse_date(v):
         except ValueError:
             continue
     return None
-
-
-@router.get("/export")
-def export_students(
-    class_id: int | None = None,
-    user: SysUser = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    cid = _get_class_id(db, user, class_id)
-    students = (
-        db.query(StudentProfile)
-        .filter(StudentProfile.class_id == cid, StudentProfile.deleted_at.is_(None))
-        .order_by(StudentProfile.student_no)
-        .all()
-    )
-    headers = ["学号", "姓名", "性别", "出生日期", "民族", "政治面貌", "籍贯", "生源地", "手机号", "家庭住址"]
-    rows = [
-        [
-            s.student_no, s.name, s.gender,
-            s.birth_date.isoformat() if s.birth_date else "",
-            s.nation or "", s.political or "", s.native_place or "",
-            s.origin or "", s.phone or "", s.address or "",
-        ]
-        for s in students
-    ]
-    content = export_rows_to_xlsx(headers, rows, "花名册")
-    return Response(
-        content=content,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=roster.xlsx"},
-    )
