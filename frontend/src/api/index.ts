@@ -71,3 +71,17 @@ export const clearData = () => request.post('/data/clear')
 
 // 上传
 export const uploadFile = (formData: FormData) => request.post('/upload', formData)
+
+// 教学安排（课程表 / 实训 / 校历）
+export const getScheduleSettings = (params: any) => request.get('/schedule/settings', { params })
+export const getScheduleSetting = (params: any) => request.get('/schedule/setting', { params })
+export const saveScheduleSetting = (data: any) => request.post('/schedule/setting', data)
+export const getScheduleEntries = (settingId: number) => request.get('/schedule/entries', { params: { setting_id: settingId } })
+export const saveScheduleEntry = (data: any) => request.post('/schedule/entry', data)
+export const deleteScheduleEntry = (id: number) => request.delete(`/schedule/entry/${id}`)
+export const getCalendarEvents = (params: any) => request.get('/calendar/events', { params })
+export const saveCalendarEvent = (data: any) => request.post('/calendar/event', data)
+export const deleteCalendarEvent = (id: number) => request.delete(`/calendar/event/${id}`)
+export const importSchedule = (formData: FormData, params: any) => request.post('/schedule/import', formData, { params })
+export const downloadScheduleTemplate = () => request.get('/schedule/import-template', { responseType: 'blob' })
+export const importCalendarImage = (formData: FormData, params: any) => request.post('/calendar/import-image', formData, { params, timeout: 120000 })

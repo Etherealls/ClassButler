@@ -31,6 +31,9 @@
         <el-menu-item index="/honors">
           <el-icon><Trophy /></el-icon><span>荣誉证书</span>
         </el-menu-item>
+        <el-menu-item index="/schedule">
+          <el-icon><Calendar /></el-icon><span>教学安排</span>
+        </el-menu-item>
         <el-menu-item index="/account">
           <el-icon><Setting /></el-icon><span>账号设置</span>
         </el-menu-item>

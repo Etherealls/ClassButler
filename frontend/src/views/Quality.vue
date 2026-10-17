@@ -2,17 +2,21 @@
   <div class="page-container">
     <div class="toolbar">
       <el-select v-model="semester" placeholder="选择学期" style="width: 220px" @change="load">
-        <el-option v-for="s in semesters" :key="s.value" :label="s.label" :value="s.value" :disabled="!s.editable" />
+        <el-option v-for="s in semesters" :key="s.value" :label="s.label" :value="s.value" :disabled="!s.editable && !s.readonly" />
       </el-select>
-      <el-select v-model="level" placeholder="评价等级" style="width: 140px">
+      <el-select v-if="!isReadonly" v-model="level" placeholder="评价等级" style="width: 140px">
         <el-option v-for="l in levels" :key="l" :label="l" :value="l" />
       </el-select>
-      <el-button type="primary" @click="handleSubmit">提交</el-button>
+      <el-button v-if="!isReadonly" type="primary" @click="handleSubmit">提交</el-button>
       <div class="spacer"></div>
       <el-button type="success" @click="handleExport">导出 Excel</el-button>
     </div>
 
-    <el-alert type="info" :closable="false" style="margin-bottom: 16px">
+    <el-alert v-if="isReadonly" type="warning" :closable="false" style="margin-bottom: 16px">
+      当前为历史学期，数据仅可查看，不可修改评价得分。
+    </el-alert>
+
+    <el-alert v-else type="info" :closable="false" style="margin-bottom: 16px">
       计分规则：合计 800–950 为优秀、700–799 为良好、600–699 为合格、600 以下为不合格；单个素质最高 190 分，五项尽量平均，所有得分均为整数。
       提交时：若填写了「班级排名」或「综合评价等级」，系统将自动计算单素质得分并排序；若填写了单素质得分，系统将自动计算合计与评价等级并排序。班级排名为选填。
     </el-alert>
@@ -23,43 +27,43 @@
       <el-table-column prop="student_no" label="学生学号" width="120" />
       <el-table-column label="德育" width="100">
         <template #default="{ row }">
-          <el-input-number v-model="row.moral" :min="0" :max="190" :precision="0" :step="1" size="small" controls-position="right" />
+          <el-input-number v-model="row.moral" :min="0" :max="190" :precision="0" :step="1" size="small" controls-position="right" :disabled="isReadonly" />
         </template>
       </el-table-column>
       <el-table-column label="智育" width="100">
         <template #default="{ row }">
-          <el-input-number v-model="row.intellect" :min="0" :max="190" :precision="0" :step="1" size="small" controls-position="right" />
+          <el-input-number v-model="row.intellect" :min="0" :max="190" :precision="0" :step="1" size="small" controls-position="right" :disabled="isReadonly" />
         </template>
       </el-table-column>
       <el-table-column label="体育" width="100">
         <template #default="{ row }">
-          <el-input-number v-model="row.sport" :min="0" :max="190" :precision="0" :step="1" size="small" controls-position="right" />
+          <el-input-number v-model="row.sport" :min="0" :max="190" :precision="0" :step="1" size="small" controls-position="right" :disabled="isReadonly" />
         </template>
       </el-table-column>
       <el-table-column label="美育" width="100">
         <template #default="{ row }">
-          <el-input-number v-model="row.art" :min="0" :max="190" :precision="0" :step="1" size="small" controls-position="right" />
+          <el-input-number v-model="row.art" :min="0" :max="190" :precision="0" :step="1" size="small" controls-position="right" :disabled="isReadonly" />
         </template>
       </el-table-column>
       <el-table-column label="劳育" width="100">
         <template #default="{ row }">
-          <el-input-number v-model="row.labor" :min="0" :max="190" :precision="0" :step="1" size="small" controls-position="right" />
+          <el-input-number v-model="row.labor" :min="0" :max="190" :precision="0" :step="1" size="small" controls-position="right" :disabled="isReadonly" />
         </template>
       </el-table-column>
       <el-table-column prop="total" label="合计" width="80" />
       <el-table-column label="班级排名" width="110">
         <template #default="{ row }">
-          <el-input-number v-model="row.rank" :min="1" :max="999" :precision="0" :step="1" size="small" controls-position="right" placeholder="选填" />
+          <el-input-number v-model="row.rank" :min="1" :max="999" :precision="0" :step="1" size="small" controls-position="right" placeholder="选填" :disabled="isReadonly" />
         </template>
       </el-table-column>
       <el-table-column label="综合评价等级" width="130">
         <template #default="{ row }">
-          <el-select v-model="row.level" size="small" clearable placeholder="选填">
+          <el-select v-model="row.level" size="small" clearable placeholder="选填" :disabled="isReadonly">
             <el-option v-for="l in levels" :key="l" :label="l" :value="l" />
           </el-select>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="70" fixed="right">
+      <el-table-column v-if="!isReadonly" label="操作" width="70" fixed="right">
         <template #default="{ row }">
           <el-button link type="danger" size="small" @click="handleClear(row)">清除</el-button>
         </template>
@@ -69,7 +73,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getQuality, evaluateQuality, manualQuality, deleteQuality, exportQuality, getSemesters } from '@/api'
 
@@ -79,6 +83,12 @@ const semesters = ref<any[]>([])
 const level = ref('优秀')
 const list = ref<any[]>([])
 const loading = ref(false)
+
+// 当前选中学期是否为历史学期（只读）
+const isReadonly = computed(() => {
+  const s = semesters.value.find((x) => x.value === semester.value)
+  return !!s?.readonly
+})
 
 const load = async () => {
   if (!semester.value) { ElMessage.warning('请选择学期'); return }
@@ -103,6 +113,7 @@ const hasScore = (row: any) => {
 // 提交：分别处理"按排名/等级生成"与"按手动得分计算"
 const handleSubmit = async () => {
   if (!semester.value) { ElMessage.warning('请选择学期'); return }
+  if (isReadonly.value) { ElMessage.warning('历史学期不可修改评价'); return }
 
   const manualRows: any[] = []   // 填写了单素质得分的学生
   const rankRows: any[] = []     // 填写了班级排名的学生（选填等级）
@@ -168,6 +179,7 @@ const handleSubmit = async () => {
 // 清除某学生评价
 const handleClear = async (row: any) => {
   if (!row.student_id) return
+  if (isReadonly.value) { ElMessage.warning('历史学期不可修改评价'); return }
   await deleteQuality(row.student_id, semester.value)
   ElMessage.success('已清除')
   await load()

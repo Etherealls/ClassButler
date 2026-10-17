@@ -52,6 +52,10 @@ const handleLogin = async () => {
     if (data.must_change_pwd) {
       ElMessage.warning('首次登录请先修改密码')
       router.push('/account')
+    } else if (!data.start_semester) {
+      // 尚未设置开始学期，跳转到账号页强制选择
+      ElMessage.warning('请先选择开始学期')
+      router.push('/account')
     } else {
       router.push('/dashboard')
     }

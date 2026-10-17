@@ -14,7 +14,7 @@
       </div>
       <p class="tip">
         当前开始学期：<b>{{ account.start_semester ? startSemesterLabel(account.start_semester) : '未设置' }}</b>。
-        从该学期起向后共 10 个学期（5 个学年），将作为班级全部学期。设置后请重新登录以更新各处下拉框。
+        从该学期起向后共 10 个学期（5 个学年），将作为班级全部学期。保存后各处学期下拉框将自动更新。
       </p>
     </div>
 
@@ -62,6 +62,29 @@
         <el-button type="danger" :disabled="countdown > 0" @click="confirmClear">确认清除</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog
+      v-model="semesterDialog"
+      title="选择开始学期"
+      width="460px"
+      :close-on-click-modal="false"
+      :close-on-press-escape="false"
+      :show-close="false"
+    >
+      <el-alert type="info" :closable="false" show-icon title="首次使用，请设置开始担任班主任的学期" description="该学期将作为班级全部学期（共 10 个学期）的起点，设置后仍可在「账号信息」中修改。" />
+      <div class="semester-form">
+        <el-select v-model="startYear" placeholder="开始学年" style="width: 180px">
+          <el-option v-for="y in yearOptions" :key="y" :label="`${y}-${y + 1} 学年`" :value="y" />
+        </el-select>
+        <el-select v-model="startSeq" placeholder="学期" style="width: 150px">
+          <el-option label="第一学期" :value="1" />
+          <el-option label="第二学期" :value="2" />
+        </el-select>
+      </div>
+      <template #footer>
+        <el-button type="primary" :loading="savingSemester" @click="handleSaveStartSemester">保存并进入系统</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -93,14 +116,24 @@ const startSemesterLabel = (sem: string) => {
 
 const handleSaveStartSemester = async () => {
   const sem = `${startYear.value}-${startYear.value + 1}-${startSeq.value}`
-  await updateAccount({ start_semester: sem })
-  ElMessage.success('开始学期已保存')
-  account.value.start_semester = sem
+  savingSemester.value = true
+  try {
+    await updateAccount({ start_semester: sem })
+    account.value.start_semester = sem
+    userStore.updateStartSemester(sem)
+    ElMessage.success('开始学期已保存，各处学期下拉框已自动更新')
+    semesterDialog.value = false
+  } finally {
+    savingSemester.value = false
+  }
 }
 
 const clearDialog = ref(false)
 const countdown = ref(5)
 let timer: any = null
+
+const semesterDialog = ref(false)
+const savingSemester = ref(false)
 
 const handleClearData = () => {
   countdown.value = 5
@@ -148,6 +181,11 @@ onMounted(async () => {
     const parts = account.value.start_semester.split('-')
     startYear.value = Number(parts[0])
     startSeq.value = Number(parts[parts.length - 1])
+    // 同步到 store，保证各处下拉框一致
+    userStore.updateStartSemester(account.value.start_semester)
+  } else {
+    // 未设置开始学期，强制弹出选择框
+    semesterDialog.value = true
   }
   loadBackups()
   loadLogs()
@@ -170,5 +208,11 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 .clear-tip {
   color: #e6a23c;
   font-size: 14px;
+}
+.semester-form {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+  justify-content: center;
 }
 </style>

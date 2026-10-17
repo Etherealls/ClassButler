@@ -167,3 +167,30 @@ class QualityManualScore(BaseModel):
     art: float = 0
     labor: float = 0
     note: Optional[str] = None
+
+
+# ---------- 课程表 / 校历 ----------
+class ScheduleSettingSave(BaseModel):
+    """保存课程表设置（type: class/teacher/training）"""
+    type: str
+    semester: str
+    morning_count: int = 4
+    afternoon_count: int = 4
+    periods: Optional[list[str]] = None  # 时间段列表，长度=节数
+
+
+class ScheduleEntrySave(BaseModel):
+    """保存/更新单个课程单元格"""
+    setting_id: int
+    weekday: int
+    period_index: int
+    course_name: Optional[str] = None
+    teacher_name: Optional[str] = None
+    location: Optional[str] = None
+
+
+class CalendarEventSave(BaseModel):
+    """校历事件（type: class/holiday/exam）"""
+    date: date
+    type: str
+    note: Optional[str] = None

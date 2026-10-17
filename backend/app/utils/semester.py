@@ -90,6 +90,8 @@ def build_semester_info(start_semester: str | None, today: date | None = None) -
         }
     semesters = generate_semesters(start_semester)
     current = get_current_semester(semesters, today)
+    # 当前学期的索引，用于判断"之前/之后"
+    current_idx = semesters.index(current) if current else -1
     return {
         "start_semester": start_semester,
         "semesters": [
@@ -100,8 +102,10 @@ def build_semester_info(start_semester: str | None, today: date | None = None) -
                 "end": (_semester_bounds(s)[1] - timedelta(days=1)).isoformat(),
                 "editable": s == current,
                 "is_current": s == current,
+                # readonly：当前学期之前的历史学期，可查看但不可修改
+                "readonly": 0 <= current_idx and i < current_idx,
             }
-            for s in semesters
+            for i, s in enumerate(semesters)
         ],
         "current_semester": current,
         "editable_semester": current,

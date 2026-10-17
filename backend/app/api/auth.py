@@ -39,6 +39,7 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)):
             "must_change_pwd": user.must_change_pwd,
             "username": user.username,
             "class_id": user.class_id,
+            "start_semester": user.start_semester,
         }
     )
 

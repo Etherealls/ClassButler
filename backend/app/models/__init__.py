@@ -227,3 +227,56 @@ class QualityEvaluation(Base, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("student_id", "semester", name="uk_stu_quality_sem"),
     )
+
+
+class ScheduleSetting(Base, TimestampMixin):
+    """课程表设置（课程表 / 班主任课程表 / 实训课程表）"""
+
+    __tablename__ = "schedule_setting"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    # type: class=班级课程表, teacher=班主任课程表, training=实训课程表
+    type: Mapped[str] = mapped_column(String(16), nullable=False)
+    semester: Mapped[str] = mapped_column(String(16), nullable=False)
+    morning_count: Mapped[int] = mapped_column(Integer, default=4)   # 上午节数
+    afternoon_count: Mapped[int] = mapped_column(Integer, default=4)  # 下午节数
+    # periods: JSON 字符串，长度=上午节数+下午节数，每项为时间段文本如 "08:00-08:45"
+    periods: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("type", "semester", name="uk_schedule_type_sem"),
+    )
+
+
+class ScheduleEntry(Base, TimestampMixin):
+    """课程安排单元格（某星期某节课的课程）"""
+
+    __tablename__ = "schedule_entry"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    setting_id: Mapped[int] = mapped_column(Integer, ForeignKey("schedule_setting.id"), nullable=False)
+    weekday: Mapped[int] = mapped_column(Integer, nullable=False)      # 1-7 周一~周日
+    period_index: Mapped[int] = mapped_column(Integer, nullable=False)  # 0 起，第几节
+    course_name: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    teacher_name: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    location: Mapped[str | None] = mapped_column(String(64), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("setting_id", "weekday", "period_index", name="uk_entry_cell"),
+    )
+
+
+class CalendarEvent(Base, TimestampMixin):
+    """校历事件（上课/假期/考试）"""
+
+    __tablename__ = "calendar_event"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    # type: class=上课, holiday=假期, exam=考试
+    type: Mapped[str] = mapped_column(String(16), nullable=False)
+    note: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("date", "type", name="uk_calendar_date_type"),
+    )
