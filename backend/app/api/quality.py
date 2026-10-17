@@ -8,11 +8,22 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.core.deps import get_current_user, write_audit
 from app.core.response import BizError, ok
-from app.models import QualityEvaluation, StudentProfile, SysUser
+from app.models import ClassInfo, QualityEvaluation, StudentProfile, SysUser
 from app.schemas import QualityEvaluateRequest, QualityManualScore
 from app.utils import export_rows_to_xlsx
 
 router = APIRouter(tags=["综合素质评价"])
+
+
+def _get_class_id(db: Session, user: SysUser) -> int:
+    """确定操作班级：优先账号绑定班级，否则回退第一个班级"""
+    if user.class_id is not None:
+        return user.class_id
+    cls = db.query(ClassInfo).first()
+    if cls is None:
+        raise BizError("请先创建班级", 400)
+    return cls.id
+
 
 # 等级 -> 合计分区间
 LEVEL_RANGE = {
@@ -117,7 +128,7 @@ def list_quality(
     db: Session = Depends(get_db),
 ):
     """综合素质评价列表（含班级排名）"""
-    cid = user.class_id
+    cid = _get_class_id(db, user)
     students = (
         db.query(StudentProfile)
         .filter(StudentProfile.class_id == cid, StudentProfile.deleted_at.is_(None))
@@ -173,7 +184,7 @@ def evaluate_quality(
     """按等级为指定学生（缺省全班级）自动生成五项得分并排名"""
     if body.level not in LEVEL_RANGE:
         raise BizError("无效的评价等级", 400)
-    cid = user.class_id
+    cid = _get_class_id(db, user)
     q = db.query(StudentProfile).filter(
         StudentProfile.class_id == cid, StudentProfile.deleted_at.is_(None)
     )

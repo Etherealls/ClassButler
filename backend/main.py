@@ -10,7 +10,6 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.api import (
-    attendance,
     auth,
     dashboard,
     honors,
@@ -42,7 +41,7 @@ API_PREFIX = "/api/v1"
 
 # 注册路由
 for module in [
-    auth, students, organization, attendance,
+    auth, students, organization,
     scores, honors, quality, dashboard, system,
 ]:
     app.include_router(module.router, prefix=API_PREFIX)

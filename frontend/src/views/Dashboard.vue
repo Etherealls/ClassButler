@@ -6,42 +6,41 @@
         <div class="value">{{ overview.total_students ?? '—' }}</div>
       </div>
       <div class="stat-card">
-        <div class="label">今日出勤率</div>
-        <div class="value">{{ rateText }}</div>
+        <div class="label">学生干部</div>
+        <div class="value">{{ overview.cadre_count ?? '—' }}</div>
       </div>
       <div class="stat-card">
-        <div class="label">本周旷课人次</div>
-        <div class="value">{{ overview.week_absent ?? '—' }}</div>
+        <div class="label">住宿人数</div>
+        <div class="value">{{ overview.dorm_count ?? '—' }}</div>
       </div>
       <div class="stat-card">
-        <div class="label">当前学期挂科人数</div>
-        <div class="value">{{ overview.fail_students ?? '—' }}</div>
+        <div class="label">荣誉/证书数</div>
+        <div class="value">{{ totalHonors }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">已评价人数</div>
+        <div class="value">{{ overview.evaluated ?? '—' }}</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">待评价人数</div>
+        <div class="value">{{ overview.unevaluated ?? '—' }}</div>
       </div>
     </div>
 
     <el-row :gutter="20">
       <el-col :span="14">
         <div class="chart-card">
-          <h3>近 30 天出勤率趋势</h3>
-          <div ref="trendRef" style="height: 320px"></div>
+          <h3>综合素质评价等级分布</h3>
+          <div ref="distRef" style="height: 340px"></div>
         </div>
       </el-col>
       <el-col :span="10">
         <div class="chart-card">
-          <h3>成绩分布</h3>
-          <div ref="distRef" style="height: 320px"></div>
-        </div>
-      </el-col>
-    </el-row>
-
-    <el-row :gutter="20">
-      <el-col :span="24">
-        <div class="chart-card">
-          <h3>旷课次数 Top 榜</h3>
-          <el-table :data="rankings.absent_top" size="small" empty-text="暂无数据">
+          <h3>荣誉 Top 榜</h3>
+          <el-table :data="honorTop" size="small" empty-text="暂无数据">
             <el-table-column type="index" label="#" width="50" />
             <el-table-column prop="name" label="姓名" />
-            <el-table-column prop="count" label="旷课次数" width="100" />
+            <el-table-column prop="count" label="荣誉/证书数" width="120" />
           </el-table>
         </div>
       </el-col>
@@ -52,43 +51,22 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, nextTick } from 'vue'
 import * as echarts from 'echarts'
-import { getOverview, getAttendanceTrend, getScoreDistribution, getRankings } from '@/api'
+import { getOverview, getQualityDistribution, getHonorTop } from '@/api'
 
 const overview = ref<any>({})
-const rankings = ref<any>({ absent_top: [] })
-const trendRef = ref()
+const honorTop = ref<any[]>([])
 const distRef = ref()
 
-const rateText = computed(() =>
-  overview.value.today_rate != null ? (overview.value.today_rate * 100).toFixed(1) + '%' : '—'
+const totalHonors = computed(() =>
+  (overview.value.award_count ?? 0) + (overview.value.cert_count ?? 0)
 )
-
-const renderTrend = (data: any[]) => {
-  const chart = echarts.init(trendRef.value)
-  chart.setOption({
-    tooltip: { trigger: 'axis' },
-    grid: { left: 40, right: 20, top: 20, bottom: 40 },
-    xAxis: { type: 'category', data: data.map((d) => d.date.slice(5)), boundaryGap: false },
-    yAxis: { type: 'value', max: 100, axisLabel: { formatter: '{value}%' } },
-    series: [
-      {
-        type: 'line',
-        data: data.map((d) => d.rate),
-        smooth: true,
-        areaStyle: { opacity: 0.15 },
-        itemStyle: { color: '#409EFF' },
-        connectNulls: true,
-      },
-    ],
-  })
-  window.addEventListener('resize', () => chart.resize())
-}
 
 const renderDist = (data: any[]) => {
   const chart = echarts.init(distRef.value)
   chart.setOption({
     tooltip: { trigger: 'item' },
     legend: { bottom: 0 },
+    color: ['#67C23A', '#409EFF', '#E6A23C', '#F56C6C'],
     series: [
       {
         type: 'pie',
@@ -102,16 +80,14 @@ const renderDist = (data: any[]) => {
 }
 
 onMounted(async () => {
-  const [o, t, d, r] = await Promise.all([
+  const [o, d, h] = await Promise.all([
     getOverview(),
-    getAttendanceTrend({ days: 30 }),
-    getScoreDistribution(),
-    getRankings(),
+    getQualityDistribution(),
+    getHonorTop(),
   ])
   overview.value = (o as any).data
-  rankings.value = (r as any).data
+  honorTop.value = (h as any).data || []
   await nextTick()
-  renderTrend((t as any).data)
   renderDist((d as any).data)
 })
 </script>

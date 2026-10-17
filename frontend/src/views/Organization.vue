@@ -23,7 +23,6 @@
           <el-table-column prop="student_name" label="姓名" width="100" />
           <el-table-column prop="student_no" label="学号" width="120" />
           <el-table-column prop="room_no" label="宿舍号" width="120" />
-          <el-table-column prop="bed_no" label="床位号" width="120" />
         </el-table>
       </el-tab-pane>
 
@@ -36,7 +35,7 @@
           <el-button type="primary" @click="initSeatGrid">生成座位网格</el-button>
           <el-button type="success" @click="saveSeat">保存座位表</el-button>
         </div>
-        <div class="seat-grid" :style="{ gridTemplateColumns: `repeat(${seatCols}, 90px)` }">
+        <div class="seat-grid" :style="{ gridTemplateColumns: `repeat(${seatCols}, 120px)` }">
           <div v-for="(cell, i) in seatGrid" :key="i" class="seat-cell">
             <el-select v-model="cell.studentId" filterable clearable placeholder="空位" @change="reassignSeat(i, cell.studentId)">
               <el-option v-for="s in allStudents" :key="s.id" :label="s.name" :value="s.id" />
@@ -47,6 +46,9 @@
 
       <el-tab-pane label="值日排班" name="duty">
         <div class="toolbar">
+          <el-select v-model="dutyWeekdayFilter" placeholder="按星期筛选" clearable style="width: 140px" @change="loadDuty">
+            <el-option v-for="i in 7" :key="i" :label="weekdayLabel(i)" :value="i" />
+          </el-select>
           <el-button type="primary" @click="openDutyDialog">添加值日安排</el-button>
         </div>
         <el-table :data="dutyList" border stripe v-loading="loading">
@@ -54,7 +56,11 @@
             <template #default="{ row }">{{ weekdayLabel(row.weekday) }}</template>
           </el-table-column>
           <el-table-column label="值日生">
-            <template #default="{ row }">{{ row.students.map((s: any) => s.name).join('、') }}</template>
+            <template #default="{ row }">
+              <el-tag v-for="s in row.students" :key="s.id" size="small" style="margin: 2px 4px 2px 0">
+                {{ s.name }}{{ s.job ? '（' + s.job + '）' : '' }}
+              </el-tag>
+            </template>
           </el-table-column>
           <el-table-column prop="note" label="备注" />
         </el-table>
@@ -74,7 +80,6 @@
       <el-form label-width="80px">
         <el-form-item label="学生"><el-select v-model="dormForm.student_id" filterable><el-option v-for="s in allStudents" :key="s.id" :label="s.name" :value="s.id" /></el-select></el-form-item>
         <el-form-item label="宿舍号"><el-select v-model="dormForm.room_no" filterable allow-create><el-option v-for="r in dormRooms" :key="r.id" :label="r.room_no" :value="r.room_no" /></el-select></el-form-item>
-        <el-form-item label="床位号"><el-input v-model="dormForm.bed_no" placeholder="如：1号床" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="dormDialog = false">取消</el-button><el-button type="primary" @click="saveDorm">保存</el-button></template>
     </el-dialog>
@@ -87,14 +92,27 @@
       <template #footer><el-button @click="roomDialog = false">取消</el-button><el-button type="primary" @click="saveRoom">保存</el-button></template>
     </el-dialog>
 
-    <el-dialog v-model="dutyDialog" title="添加值日安排" width="480px">
+    <el-dialog v-model="dutyDialog" title="添加值日安排" width="520px">
       <el-form label-width="80px">
         <el-form-item label="星期">
           <el-select v-model="dutyForm.weekday">
             <el-option v-for="i in 7" :key="i" :label="weekdayLabel(i)" :value="i" />
           </el-select>
         </el-form-item>
-        <el-form-item label="值日生"><el-select v-model="dutyForm.student_ids" multiple filterable><el-option v-for="s in allStudents" :key="s.id" :label="s.name" :value="s.id" /></el-select></el-form-item>
+        <el-form-item label="值日生">
+          <el-select v-model="dutyForm.student_ids" multiple filterable style="width: 100%">
+            <el-option v-for="s in allStudents" :key="s.id" :label="s.name" :value="s.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="工作分配">
+          <div v-for="sid in dutyForm.student_ids" :key="sid" style="display: flex; align-items: center; margin-bottom: 6px">
+            <span style="width: 90px">{{ studentName(sid) }}</span>
+            <el-select v-model="dutyForm.jobs[sid]" placeholder="选择工作" style="flex: 1">
+              <el-option v-for="j in dutyJobs" :key="j" :label="j" :value="j" />
+            </el-select>
+          </div>
+          <span v-if="!dutyForm.student_ids.length" style="color: #909399; font-size: 12px">请先选择值日生</span>
+        </el-form-item>
         <el-form-item label="备注"><el-input v-model="dutyForm.note" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="dutyDialog = false">取消</el-button><el-button type="primary" @click="saveDuty">保存</el-button></template>
@@ -125,13 +143,20 @@ const dutyDialog = ref(false)
 const cadreForm = reactive<any>({})
 const dormForm = reactive<any>({})
 const roomForm = reactive<any>({ capacity: 4 })
-const dutyForm = reactive<any>({ weekday: 1, student_ids: [] })
+const dutyForm = reactive<any>({ weekday: 1, student_ids: [], jobs: {} })
+const dutyWeekdayFilter = ref<number | undefined>(undefined)
+const dutyJobs = ['扫地', '拖地', '擦黑板', '整理讲台窗台', '刷地']
 
 const seatRows = ref(6)
 const seatCols = ref(8)
 const seatGrid = ref<any[]>([])
 
 const weekdayLabel = (i: number) => ['', '周一', '周二', '周三', '周四', '周五', '周六', '周日'][i]
+
+const studentName = (sid: number) => {
+  const s = allStudents.value.find((x: any) => x.id === sid)
+  return s ? s.name : ''
+}
 
 const loadAll = async () => {
   loading.value = true
@@ -156,6 +181,12 @@ const loadAll = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const loadDuty = async () => {
+  const params = dutyWeekdayFilter.value ? { weekday: dutyWeekdayFilter.value } : {}
+  const res: any = await getDuty(params)
+  dutyList.value = res.data
 }
 
 const initSeatGrid = (layout?: any) => {
@@ -190,7 +221,7 @@ const saveCadre = async () => {
 }
 const openDormDialog = () => { Object.keys(dormForm).forEach((k) => delete dormForm[k]); dormForm.start_date = new Date().toISOString().slice(0, 10); dormDialog.value = true }
 const saveDorm = async () => {
-  if (!dormForm.student_id || !dormForm.room_no || !dormForm.bed_no) { ElMessage.warning('请填写完整'); return }
+  if (!dormForm.student_id || !dormForm.room_no) { ElMessage.warning('请填写完整'); return }
   await createDormAssignment(dormForm); ElMessage.success('已分配'); dormDialog.value = false; loadAll()
 }
 const openRoomDialog = () => { roomForm.room_no = ''; roomForm.capacity = 4; roomDialog.value = true }
@@ -198,10 +229,14 @@ const saveRoom = async () => {
   if (!roomForm.room_no) { ElMessage.warning('请输入宿舍号'); return }
   await createDormRoom(roomForm); ElMessage.success('已添加'); roomDialog.value = false; loadAll()
 }
-const openDutyDialog = () => { dutyForm.weekday = 1; dutyForm.student_ids = []; dutyForm.note = ''; dutyDialog.value = true }
+const openDutyDialog = () => { dutyForm.weekday = 1; dutyForm.student_ids = []; dutyForm.jobs = {}; dutyForm.note = ''; dutyDialog.value = true }
 const saveDuty = async () => {
   if (!dutyForm.student_ids.length) { ElMessage.warning('请选择值日生'); return }
-  await createDuty(dutyForm); ElMessage.success('已排班'); dutyDialog.value = false; loadAll()
+  // jobs 键转为字符串
+  const jobs: any = {}
+  dutyForm.student_ids.forEach((sid: number) => { jobs[String(sid)] = dutyForm.jobs[sid] || '' })
+  await createDuty({ weekday: dutyForm.weekday, student_ids: dutyForm.student_ids, jobs, note: dutyForm.note })
+  ElMessage.success('已排班'); dutyDialog.value = false; loadDuty()
 }
 
 onMounted(loadAll)

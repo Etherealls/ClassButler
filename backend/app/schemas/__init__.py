@@ -82,16 +82,6 @@ class StudentUpdate(BaseModel):
     class_id: Optional[int] = None
 
 
-# ---------- 考勤 ----------
-class AttendanceBatchRequest(BaseModel):
-    class_id: Optional[int] = None
-    att_date: date
-    session: str
-    # student_id -> status 映射；未列出的学生默认 NORMAL
-    records: dict[int, str] = {}
-    remark: Optional[str] = None
-
-
 # ---------- 课程 / 成绩 ----------
 class CourseCreate(BaseModel):
     course_name: str
@@ -101,23 +91,6 @@ class CourseCreate(BaseModel):
 
 class ScoreUpdate(BaseModel):
     score: float
-
-
-# ---------- 补考 ----------
-class MakeupCreate(BaseModel):
-    student_id: int
-    course_id: int
-    stage: str = "WAIT_MAKEUP"
-    exam_time: Optional[datetime] = None
-    result_score: Optional[float] = None
-    note: Optional[str] = None
-
-
-class MakeupUpdate(BaseModel):
-    stage: Optional[str] = None
-    exam_time: Optional[datetime] = None
-    result_score: Optional[float] = None
-    note: Optional[str] = None
 
 
 # ---------- 荣誉 ----------
@@ -150,7 +123,7 @@ class CadreCreate(BaseModel):
 class DormAssignCreate(BaseModel):
     student_id: int
     room_no: str
-    bed_no: str
+    bed_no: Optional[str] = None
     start_date: Optional[date] = None
 
 
@@ -163,6 +136,7 @@ class SeatPlanSave(BaseModel):
 class DutyScheduleCreate(BaseModel):
     weekday: int
     student_ids: list[int]
+    jobs: Optional[dict[str, str]] = None  # student_id(字符串) -> 工作
     note: Optional[str] = None
 
 

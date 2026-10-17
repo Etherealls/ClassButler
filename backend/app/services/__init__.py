@@ -26,6 +26,12 @@ def init_database():
         if db.query(ClassInfo).count() == 0:
             db.add(ClassInfo(class_name="默认班级", grade_year=datetime_now_year()))
             db.commit()
+        # 确保班主任账号绑定班级（若未绑定则绑定第一个班级）
+        user = db.query(SysUser).first()
+        cls = db.query(ClassInfo).first()
+        if user and cls and user.class_id is None:
+            user.class_id = cls.id
+            db.commit()
     finally:
         db.close()
 

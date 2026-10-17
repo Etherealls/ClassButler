@@ -22,17 +22,11 @@
         <el-menu-item index="/organization">
           <el-icon><OfficeBuilding /></el-icon><span>班级组织</span>
         </el-menu-item>
-        <el-menu-item index="/attendance">
-          <el-icon><Calendar /></el-icon><span>考勤管理</span>
-        </el-menu-item>
         <el-menu-item index="/scores">
           <el-icon><Histogram /></el-icon><span>成绩管理</span>
         </el-menu-item>
         <el-menu-item index="/quality">
           <el-icon><Star /></el-icon><span>综合素质评价</span>
-        </el-menu-item>
-        <el-menu-item index="/makeup">
-          <el-icon><RefreshRight /></el-icon><span>补考重修</span>
         </el-menu-item>
         <el-menu-item index="/honors">
           <el-icon><Trophy /></el-icon><span>荣誉证书</span>

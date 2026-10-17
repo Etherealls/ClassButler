@@ -27,16 +27,10 @@ export const getDormAssignments = () => request.get('/dorm/assignments')
 export const createDormAssignment = (data: any) => request.post('/dorm/assignments', data)
 export const getSeatPlan = () => request.get('/seat-plan')
 export const saveSeatPlan = (data: any) => request.post('/seat-plan', data)
-export const getDuty = () => request.get('/duty-schedule')
+export const getDuty = (params?: any) => request.get('/duty-schedule', { params })
 export const createDuty = (data: any) => request.post('/duty-schedule', data)
 
-// 考勤
-export const batchAttendance = (data: any) => request.post('/attendance/batch', data)
-export const getAttendance = (params: any) => request.get('/attendance', { params })
-export const getAttendanceSummary = (params: any) => request.get('/attendance/summary', { params })
-export const exportAttendance = (params: any) =>
-  request.get('/attendance/export', { params, responseType: 'blob' })
-
+// 考勤（已删除）
 // 成绩
 export const getCourses = (params: any) => request.get('/courses', { params })
 export const createCourse = (data: any) => request.post('/courses', data)
@@ -55,10 +49,7 @@ export const deleteQuality = (studentId: number, semester: string) =>
 export const exportQuality = (params: any) =>
   request.get('/quality/export', { params, responseType: 'blob' })
 
-// 补考/荣誉
-export const getMakeup = (params: any) => request.get('/makeup', { params })
-export const createMakeup = (data: any) => request.post('/makeup', data)
-export const updateMakeup = (id: number, data: any) => request.put(`/makeup/${id}`, data)
+// 荣誉
 export const getAwards = (params: any) => request.get('/awards', { params })
 export const createAward = (data: any) => request.post('/awards', data)
 export const getCertificates = (params: any) => request.get('/certificates', { params })
@@ -66,11 +57,8 @@ export const createCertificate = (data: any) => request.post('/certificates', da
 
 // 看板
 export const getOverview = () => request.get('/dashboard/overview')
-export const getAttendanceTrend = (params: any) =>
-  request.get('/dashboard/attendance-trend', { params })
-export const getScoreDistribution = (params: any) =>
-  request.get('/dashboard/score-distribution', { params })
-export const getRankings = () => request.get('/dashboard/rankings')
+export const getQualityDistribution = () => request.get('/dashboard/quality-distribution')
+export const getHonorTop = () => request.get('/dashboard/honor-top')
 
 // 系统
 export const getAccount = () => request.get('/account')

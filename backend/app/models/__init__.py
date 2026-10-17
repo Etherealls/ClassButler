@@ -110,7 +110,8 @@ class DutySchedule(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     weekday: Mapped[int] = mapped_column(Integer, nullable=False)  # 1-7 周一~周日
-    student_ids: Mapped[str] = mapped_column(Text, nullable=False)  # 逗号分隔学号/学生id
+    student_ids: Mapped[str] = mapped_column(Text, nullable=False)  # 逗号分隔学生id
+    jobs: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON: {student_id: 工作}
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
@@ -144,23 +145,6 @@ class DormAssignment(Base, TimestampMixin):
     end_date: Mapped[str | None] = mapped_column(Date, nullable=True)
 
 
-class AttendanceRecord(Base, TimestampMixin):
-    __tablename__ = "attendance_record"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    student_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    class_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    att_date: Mapped[str] = mapped_column(Date, nullable=False)
-    session: Mapped[str] = mapped_column(String(24), nullable=False)
-    status: Mapped[str] = mapped_column(String(24), nullable=False)
-    remark: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    recorder_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
-    __table_args__ = (
-        UniqueConstraint("student_id", "att_date", "session", name="uk_day_session"),
-    )
-
-
 class Course(Base, TimestampMixin):
     __tablename__ = "course"
 
@@ -182,18 +166,6 @@ class ScoreRecord(Base, TimestampMixin):
     __table_args__ = (
         UniqueConstraint("student_id", "course_id", "semester", name="uk_stu_course_sem"),
     )
-
-
-class MakeupTrack(Base, TimestampMixin):
-    __tablename__ = "makeup_track"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    student_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    course_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    stage: Mapped[str] = mapped_column(String(24), nullable=False)
-    exam_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    result_score: Mapped[float | None] = mapped_column(nullable=True)
-    note: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
 
 class CompetitionAward(Base, TimestampMixin):

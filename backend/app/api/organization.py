@@ -198,21 +198,39 @@ def save_seat_plan(
 
 
 # ---------- 值日排班 ----------
+DUTY_JOBS = ["扫地", "拖地", "擦黑板", "整理讲台窗台", "刷地"]
+
+
 @router.get("/duty-schedule")
-def list_duty(user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
-    items = db.query(DutySchedule).order_by(DutySchedule.weekday).all()
+def list_duty(
+    weekday: int | None = None,
+    user: SysUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    q = db.query(DutySchedule)
+    if weekday:
+        q = q.filter(DutySchedule.weekday == weekday)
+    items = q.order_by(DutySchedule.weekday).all()
     data = []
     for d in items:
         ids = [int(x) for x in d.student_ids.split(",") if x.strip()]
-        names = []
+        jobs = json.loads(d.jobs) if d.jobs else {}
+        students = []
         for sid in ids:
             s = db.get(StudentProfile, sid)
-            names.append({"id": sid, "name": s.name if s else "", "student_no": s.student_no if s else ""})
+            students.append(
+                {
+                    "id": sid,
+                    "name": s.name if s else "",
+                    "student_no": s.student_no if s else "",
+                    "job": jobs.get(str(sid), ""),
+                }
+            )
         data.append(
             {
                 "id": d.id,
                 "weekday": d.weekday,
-                "students": names,
+                "students": students,
                 "note": d.note,
             }
         )
@@ -229,6 +247,7 @@ def create_duty(
     d = DutySchedule(
         weekday=body.weekday,
         student_ids=",".join(str(x) for x in body.student_ids),
+        jobs=json.dumps(body.jobs or {}, ensure_ascii=False),
         note=body.note,
     )
     db.add(d)

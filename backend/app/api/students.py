@@ -89,7 +89,10 @@ def create_student(
 ):
     cid = _get_class_id(db, user, body.class_id)
     _check_unique(db, body.student_no, cid)
-    s = StudentProfile(**body.model_dump(exclude={"class_id", "family_contacts"}), class_id=cid)
+    data = body.model_dump(exclude={"class_id", "family_contacts"})
+    # 出生日期为空时，根据身份证号识别
+    data["birth_date"] = _resolve_birth_date(data.get("birth_date"), data.get("id_card"))
+    s = StudentProfile(**data, class_id=cid)
     db.add(s)
     db.flush()
     for f in body.family_contacts:
@@ -152,7 +155,10 @@ async def import_students(
                 student_no=student_no,
                 name=name,
                 gender=gender,
-                birth_date=_parse_date(r.get("出生日期")),
+                birth_date=_resolve_birth_date(
+                    _parse_date(r.get("出生日期")),
+                    str(r.get("身份证号", "") or "").strip() or None,
+                ),
                 id_card=str(r.get("身份证号", "") or "").strip() or None,
                 nation=str(r.get("民族", "") or "").strip() or None,
                 political=str(r.get("政治面貌", "") or "").strip() or None,
@@ -230,6 +236,11 @@ def update_student(
         _check_unique(db, data.get("student_no", s.student_no), data["class_id"], s.id)
     elif "student_no" in data:
         _check_unique(db, data["student_no"], s.class_id, s.id)
+    # 出生日期为空时，根据（本次传入或已有的）身份证号识别
+    if data.get("birth_date") is None and (data.get("id_card") or s.id_card):
+        resolved = _resolve_birth_date(None, data.get("id_card") or s.id_card)
+        if resolved:
+            data["birth_date"] = resolved
     for k, v in data.items():
         setattr(s, k, v)
     write_audit(db, "UPDATE", "student_profile", s.id, f"编辑 {s.name}", user.id, request.client.host if request.client else None)
@@ -288,3 +299,25 @@ def _parse_date(v):
         except ValueError:
             continue
     return None
+
+
+def _birth_from_id_card(id_card: str | None):
+    """从身份证号第 7-14 位解析出生日期（YYYYMMDD），无效则返回 None"""
+    if not id_card:
+        return None
+    id_card = str(id_card).strip()
+    # 支持 18 位身份证
+    if len(id_card) != 18:
+        return None
+    birth = id_card[6:14]
+    try:
+        return datetime.strptime(birth, "%Y%m%d").date()
+    except ValueError:
+        return None
+
+
+def _resolve_birth_date(birth_date, id_card):
+    """出生日期为空时尝试从身份证号识别"""
+    if birth_date is not None:
+        return birth_date
+    return _birth_from_id_card(id_card)
