@@ -39,50 +39,73 @@ LEVEL_ORDER = {"优秀": 0, "良好": 1, "合格": 2, "不合格": 3}
 MAX_SINGLE = 190
 
 
-def _gen_scores(student_id: int, level: str) -> tuple[float, float, float, float, float, float]:
-    """按等级生成尽量平均的五项得分，返回 (moral, intellect, sport, art, labor, total)。
+def _gen_scores(student_id: int, level: str) -> tuple[int, int, int, int, int, int]:
+    """按等级生成尽量平均的五项整数得分，返回 (moral, intellect, sport, art, labor, total)。
 
     使用 student_id 作为确定性种子，保证同一学生结果稳定可复现；
-    五项围绕同一基准值做极小对称扰动，使五项尽量接近。
+    五项围绕同一基准值做极小对称扰动，使五项尽量接近，且全部为整数。
     """
     low, high = LEVEL_RANGE[level]
     # 以区间中值为目标合计，并叠加基于学号的确定性微调
     rng = random.Random(student_id)
     target_total = low + (high - low) * 0.5
-    # 微调幅度控制在区间宽度的 10% 内，避免越界
+    # 微调幅度控制在区间宽度的 8% 内，避免越界
     jitter = (high - low) * 0.08
-    total = round(target_total + rng.uniform(-jitter, jitter), 1)
+    total = int(round(target_total + rng.uniform(-jitter, jitter)))
     # 强制落在区间内
     total = max(low, min(high, total))
 
-    base = total / 5.0
-    # 对称小扰动 [-2,-1,0,+1,+2]，保证五项接近且合计准确
+    base = total // 5
+    remainder = total - base * 5  # 0~4，分配到前几项，保证合计精确
+    # 对称小扰动 [-2,-1,0,1,2]，保证五项接近且合计准确
     deltas = [-2, -1, 0, 1, 2]
     rng.shuffle(deltas)
-    vals = [round(base + d, 1) for d in deltas]
-    # 校正浮点误差，使五项之和精确等于 total
-    diff = round(total - sum(vals), 1)
-    vals[0] = round(vals[0] + diff, 1)
-    # 每项不超过 190
-    vals = [min(v, float(MAX_SINGLE)) for v in vals]
-    # 重新归一化确保合计正确
-    adjusted = _normalize(vals, total)
-    return adjusted[0], adjusted[1], adjusted[2], adjusted[3], adjusted[4], round(sum(adjusted), 1)
+    vals = [base + d for d in deltas]
+    # 校正扰动带来的偏差，使五项之和精确等于 total
+    diff = total - sum(vals)
+    vals[0] += diff
+    # 每项不超过 190 且不小于 0
+    vals = [max(0, min(MAX_SINGLE, v)) for v in vals]
+    # 重新归一化确保合计正确（整数）
+    adjusted = _normalize_int(vals, total)
+    return adjusted[0], adjusted[1], adjusted[2], adjusted[3], adjusted[4], sum(adjusted)
 
 
-def _normalize(vals: list[float], total: float) -> list[float]:
-    """确保五项之和等于 total（尽量平均）"""
+def _normalize_int(vals: list[int], total: int) -> list[int]:
+    """确保五项整数之和等于 total"""
     s = sum(vals)
-    if abs(s - total) < 0.01:
+    if s == total:
         return vals
-    # 将差额均摊到各项
+    out = list(vals)
     diff = total - s
-    out = [round(v + diff / 5.0, 1) for v in vals]
-    out = [max(0.0, min(float(MAX_SINGLE), v)) for v in out]
-    # 最终残差加到第一项
-    residual = round(total - sum(out), 1)
-    out[0] = round(out[0] + residual, 1)
+    out[0] += diff
     return out
+
+
+def _gen_scores_by_rank(student_id: int, level: str, rank: int, total_count: int) -> tuple[int, int, int, int, int, int]:
+    """按班级排名在等级区间内生成得分。
+
+    排名越靠前，得分越高（在等级对应区间内线性分布），五项尽量平均且为整数。
+    """
+    low, high = LEVEL_RANGE[level]
+    if total_count <= 1:
+        total = high
+    else:
+        # rank 从 1 开始，1 为最高
+        ratio = (rank - 1) / (total_count - 1)  # 0(最高) ~ 1(最低)
+        total = int(round(high - (high - low) * ratio))
+    total = max(low, min(high, total))
+
+    rng = random.Random(student_id + rank * 100000)
+    base = total // 5
+    deltas = [-2, -1, 0, 1, 2]
+    rng.shuffle(deltas)
+    vals = [base + d for d in deltas]
+    diff = total - sum(vals)
+    vals[0] += diff
+    vals = [max(0, min(MAX_SINGLE, v)) for v in vals]
+    adjusted = _normalize_int(vals, total)
+    return adjusted[0], adjusted[1], adjusted[2], adjusted[3], adjusted[4], sum(adjusted)
 
 
 def _serialize(q: QualityEvaluation, s: StudentProfile | None) -> dict:
@@ -181,7 +204,7 @@ def evaluate_quality(
     user: SysUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """按等级为指定学生（缺省全班级）自动生成五项得分并排名"""
+    """按等级（或按等级+排名）为指定学生（缺省全班级）自动生成五项整数得分并排名"""
     if body.level not in LEVEL_RANGE:
         raise BizError("无效的评价等级", 400)
     cid = _get_class_id(db, user)
@@ -194,8 +217,19 @@ def evaluate_quality(
     if not students:
         raise BizError("没有可评价的学生", 400)
 
+    rank_map = body.rank_map or {}
+    # 若提供排名，以排名人数为总数
+    total_count = len(students) if not rank_map else max(len(students), 1)
+
     for s in students:
-        moral, intellect, sport, art, labor, total = _gen_scores(s.id, body.level)
+        sid_key = str(s.id)
+        if rank_map and sid_key in rank_map:
+            rank = int(rank_map[sid_key])
+            moral, intellect, sport, art, labor, total = _gen_scores_by_rank(
+                s.id, body.level, rank, total_count
+            )
+        else:
+            moral, intellect, sport, art, labor, total = _gen_scores(s.id, body.level)
         rec = (
             db.query(QualityEvaluation)
             .filter(
@@ -244,10 +278,16 @@ def manual_quality(
     s = db.get(StudentProfile, body.student_id)
     if s is None or s.deleted_at is not None:
         raise BizError("学生不存在", 404)
-    for v in (body.moral, body.intellect, body.sport, body.art, body.labor):
+    # 单项得分四舍五入为整数，并校验范围
+    moral = int(round(body.moral))
+    intellect = int(round(body.intellect))
+    sport = int(round(body.sport))
+    art = int(round(body.art))
+    labor = int(round(body.labor))
+    for v in (moral, intellect, sport, art, labor):
         if v < 0 or v > MAX_SINGLE:
             raise BizError(f"单项得分需在 0~{MAX_SINGLE} 之间", 400)
-    total = round(body.moral + body.intellect + body.sport + body.art + body.labor, 1)
+    total = moral + intellect + sport + art + labor
     # 根据合计自动判定等级
     level = ""
     for name, (low, high) in LEVEL_RANGE.items():
@@ -268,11 +308,11 @@ def manual_quality(
         .first()
     )
     if rec:
-        rec.moral = body.moral
-        rec.intellect = body.intellect
-        rec.sport = body.sport
-        rec.art = body.art
-        rec.labor = body.labor
+        rec.moral = moral
+        rec.intellect = intellect
+        rec.sport = sport
+        rec.art = art
+        rec.labor = labor
         rec.total = total
         rec.level = body.level or level
         rec.note = body.note
@@ -281,11 +321,11 @@ def manual_quality(
             student_id=body.student_id,
             semester=body.semester,
             level=body.level or level,
-            moral=body.moral,
-            intellect=body.intellect,
-            sport=body.sport,
-            art=body.art,
-            labor=body.labor,
+            moral=moral,
+            intellect=intellect,
+            sport=sport,
+            art=art,
+            labor=labor,
             total=total,
             note=body.note,
         )

@@ -140,7 +140,7 @@ class DormAssignment(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     student_id: Mapped[int] = mapped_column(Integer, nullable=False)
     room_no: Mapped[str] = mapped_column(String(16), nullable=False)
-    bed_no: Mapped[str] = mapped_column(String(8), nullable=False)
+    bed_no: Mapped[str | None] = mapped_column(String(8), nullable=True)
     start_date: Mapped[str] = mapped_column(Date, nullable=True)
     end_date: Mapped[str | None] = mapped_column(Date, nullable=True)
 
@@ -214,12 +214,12 @@ class QualityEvaluation(Base, TimestampMixin):
     student_id: Mapped[int] = mapped_column(Integer, nullable=False)
     semester: Mapped[str] = mapped_column(String(16), nullable=False)
     level: Mapped[str] = mapped_column(String(8), nullable=False)  # 优秀/良好/合格/不合格
-    moral: Mapped[float] = mapped_column(nullable=False, default=0)    # 德育
-    intellect: Mapped[float] = mapped_column(nullable=False, default=0)  # 智育
-    sport: Mapped[float] = mapped_column(nullable=False, default=0)    # 体育
-    art: Mapped[float] = mapped_column(nullable=False, default=0)     # 美育
-    labor: Mapped[float] = mapped_column(nullable=False, default=0)   # 劳育
-    total: Mapped[float] = mapped_column(nullable=False, default=0)   # 合计
+    moral: Mapped[int] = mapped_column(Integer, nullable=False, default=0)    # 德育
+    intellect: Mapped[int] = mapped_column(Integer, nullable=False, default=0)  # 智育
+    sport: Mapped[int] = mapped_column(Integer, nullable=False, default=0)    # 体育
+    art: Mapped[int] = mapped_column(Integer, nullable=False, default=0)     # 美育
+    labor: Mapped[int] = mapped_column(Integer, nullable=False, default=0)   # 劳育
+    total: Mapped[int] = mapped_column(Integer, nullable=False, default=0)   # 合计
     rank: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 班级排名
     note: Mapped[str | None] = mapped_column(String(255), nullable=True)
 

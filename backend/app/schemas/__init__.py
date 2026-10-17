@@ -147,10 +147,12 @@ class AccountUpdate(BaseModel):
 
 # ---------- 综合素质评价 ----------
 class QualityEvaluateRequest(BaseModel):
-    """按等级批量生成得分。level -> 等级；student_ids -> 可选，缺省全班级"""
+    """按等级批量生成得分。level -> 等级；student_ids -> 可选，缺省全班级；
+    rank_map -> 可选，{student_id: 班级排名}，提供时按排名在等级区间内生成得分"""
     semester: str
     level: str
     student_ids: Optional[list[int]] = None
+    rank_map: Optional[dict[str, int]] = None
 
 
 class QualityManualScore(BaseModel):
