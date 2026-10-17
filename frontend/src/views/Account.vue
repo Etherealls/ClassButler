@@ -1,28 +1,13 @@
 <template>
   <div class="page-container">
-    <el-row :gutter="20">
-      <el-col :span="12">
-        <div class="chart-card">
-          <h3>账号信息</h3>
-          <el-descriptions :column="1" border>
-            <el-descriptions-item label="账号">{{ account.username }}</el-descriptions-item>
-            <el-descriptions-item label="绑定班级">{{ account.class_name || '未绑定' }}</el-descriptions-item>
-            <el-descriptions-item label="联系电话">{{ account.phone || '未填写' }}</el-descriptions-item>
-          </el-descriptions>
-        </div>
-      </el-col>
-      <el-col :span="12">
-        <div class="chart-card">
-          <h3>修改密码</h3>
-          <el-form :model="pwdForm" label-width="90px">
-            <el-form-item label="原密码"><el-input v-model="pwdForm.old_password" type="password" show-password /></el-form-item>
-            <el-form-item label="新密码"><el-input v-model="pwdForm.new_password" type="password" show-password /></el-form-item>
-            <el-form-item label="确认密码"><el-input v-model="confirmPwd" type="password" show-password /></el-form-item>
-            <el-form-item><el-button type="primary" @click="handleChangePwd">修改密码</el-button></el-form-item>
-          </el-form>
-        </div>
-      </el-col>
-    </el-row>
+    <div class="chart-card">
+      <h3>数据管理</h3>
+      <div class="toolbar">
+        <el-button type="danger" @click="handleClearData">清除所有数据</el-button>
+        <el-button type="warning" plain @click="handleLogout">退出登录</el-button>
+      </div>
+      <p class="tip">清除数据将删除系统中所有已填写的内容（学生档案、班级组织、成绩、综合素质评价、荣誉证书等），此操作不可恢复。</p>
+    </div>
 
     <div class="chart-card">
       <h3>数据备份</h3>
@@ -48,26 +33,63 @@
         <el-table-column prop="created_at" label="时间" width="180" />
       </el-table>
     </div>
+
+    <el-dialog v-model="clearDialog" title="清除所有数据" width="440px" :close-on-click-modal="false">
+      <div class="clear-confirm">
+        <el-alert type="error" :closable="false" show-icon title="此操作不可恢复！" description="将删除系统中所有已填写的数据，且无法恢复。" />
+        <p class="clear-tip">请等待 {{ countdown }} 秒后确认操作</p>
+      </div>
+      <template #footer>
+        <el-button @click="clearDialog = false">取消</el-button>
+        <el-button type="danger" :disabled="countdown > 0" @click="confirmClear">确认清除</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref } from 'vue'
-import { ElMessage } from 'element-plus'
-import { getAccount, changePassword, getBackups, createBackup, getAuditLogs } from '@/api'
+import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { getBackups, createBackup, getAuditLogs, clearData } from '@/api'
+import { useUserStore } from '@/store/user'
 
-const account = ref<any>({})
+const router = useRouter()
+const userStore = useUserStore()
+
 const backups = ref<any[]>([])
 const logs = ref<any[]>([])
-const pwdForm = reactive({ old_password: '', new_password: '' })
-const confirmPwd = ref('')
 
-const handleChangePwd = async () => {
-  if (pwdForm.new_password.length < 6) { ElMessage.warning('密码至少 6 位'); return }
-  if (pwdForm.new_password !== confirmPwd.value) { ElMessage.warning('两次密码不一致'); return }
-  await changePassword(pwdForm)
-  ElMessage.success('密码修改成功')
-  pwdForm.old_password = ''; pwdForm.new_password = ''; confirmPwd.value = ''
+const clearDialog = ref(false)
+const countdown = ref(5)
+let timer: any = null
+
+const handleClearData = () => {
+  countdown.value = 5
+  clearDialog.value = true
+  if (timer) clearInterval(timer)
+  timer = setInterval(() => {
+    countdown.value--
+    if (countdown.value <= 0) {
+      clearInterval(timer)
+      timer = null
+    }
+  }, 1000)
+}
+
+const confirmClear = async () => {
+  if (countdown.value > 0) return
+  await clearData()
+  ElMessage.success('数据已清除')
+  clearDialog.value = false
+  loadLogs()
+}
+
+const handleLogout = () => {
+  ElMessageBox.confirm('确定退出登录吗？', '提示', { type: 'warning' }).then(() => {
+    userStore.logout()
+    router.push('/login')
+  })
 }
 
 const handleBackup = async () => {
@@ -79,11 +101,29 @@ const handleBackup = async () => {
 const formatTime = (ts: number) => new Date(ts * 1000).toLocaleString()
 
 const loadBackups = async () => { const res: any = await getBackups(); backups.value = res.data }
+const loadLogs = async () => { const res: any = await getAuditLogs({ page: 1, size: 20 }); logs.value = res.data }
 
 onMounted(async () => {
-  const [a, l] = await Promise.all([getAccount(), getAuditLogs({ page: 1, size: 20 })])
-  account.value = (a as any).data
-  logs.value = (l as any).data
   loadBackups()
+  loadLogs()
 })
+
+onBeforeUnmount(() => { if (timer) clearInterval(timer) })
 </script>
+
+<style scoped>
+.tip {
+  margin-top: 12px;
+  color: #909399;
+  font-size: 13px;
+}
+.clear-confirm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.clear-tip {
+  color: #e6a23c;
+  font-size: 14px;
+}
+</style>

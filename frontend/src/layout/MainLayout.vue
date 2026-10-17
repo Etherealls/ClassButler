@@ -42,7 +42,6 @@
         <div class="header-title">{{ currentTitle }}</div>
         <div class="header-right">
           <span class="username">{{ userStore.username }}（班主任）</span>
-          <el-button link type="danger" @click="handleLogout">退出登录</el-button>
         </div>
       </el-header>
       <el-main class="main">
@@ -54,23 +53,14 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessageBox } from 'element-plus'
+import { useRoute } from 'vue-router'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()
-const router = useRouter()
 const userStore = useUserStore()
 
 const activeMenu = computed(() => route.path)
 const currentTitle = computed(() => (route.meta.title as string) || '数据看板')
-
-const handleLogout = () => {
-  ElMessageBox.confirm('确定退出登录吗？', '提示', { type: 'warning' }).then(() => {
-    userStore.logout()
-    router.push('/login')
-  })
-}
 </script>
 
 <style scoped>

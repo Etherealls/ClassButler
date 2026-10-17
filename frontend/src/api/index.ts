@@ -66,6 +66,7 @@ export const updateAccount = (data: any) => request.put('/account', data)
 export const getAuditLogs = (params: any) => request.get('/audit-logs', { params })
 export const getBackups = () => request.get('/backups')
 export const createBackup = () => request.post('/backup')
+export const clearData = () => request.post('/data/clear')
 
 // 上传
 export const uploadFile = (formData: FormData) => request.post('/upload', formData)
