@@ -25,20 +25,11 @@
         <el-menu-item index="/attendance">
           <el-icon><Calendar /></el-icon><span>考勤管理</span>
         </el-menu-item>
-        <el-menu-item index="/leaves">
-          <el-icon><Document /></el-icon><span>请假登记</span>
-        </el-menu-item>
-        <el-menu-item index="/dorm-check">
-          <el-icon><Moon /></el-icon><span>查寝管理</span>
-        </el-menu-item>
-        <el-menu-item index="/discipline">
-          <el-icon><Warning /></el-icon><span>纪律记录</span>
-        </el-menu-item>
         <el-menu-item index="/scores">
           <el-icon><Histogram /></el-icon><span>成绩管理</span>
         </el-menu-item>
-        <el-menu-item index="/alerts">
-          <el-icon><Bell /></el-icon><span>学业预警</span>
+        <el-menu-item index="/quality">
+          <el-icon><Star /></el-icon><span>综合素质评价</span>
         </el-menu-item>
         <el-menu-item index="/makeup">
           <el-icon><RefreshRight /></el-icon><span>补考重修</span>

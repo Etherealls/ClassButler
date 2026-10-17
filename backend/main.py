@@ -13,11 +13,9 @@ from app.api import (
     attendance,
     auth,
     dashboard,
-    discipline,
-    dorm_check,
     honors,
-    leaves,
     organization,
+    quality,
     scores,
     students,
     system,
@@ -44,8 +42,8 @@ API_PREFIX = "/api/v1"
 
 # 注册路由
 for module in [
-    auth, students, organization, attendance, leaves, dorm_check,
-    discipline, scores, honors, dashboard, system,
+    auth, students, organization, attendance,
+    scores, honors, quality, dashboard, system,
 ]:
     app.include_router(module.router, prefix=API_PREFIX)
 

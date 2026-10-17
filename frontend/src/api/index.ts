@@ -37,22 +37,6 @@ export const getAttendanceSummary = (params: any) => request.get('/attendance/su
 export const exportAttendance = (params: any) =>
   request.get('/attendance/export', { params, responseType: 'blob' })
 
-// 请假
-export const createLeave = (data: any) => request.post('/leaves', data)
-export const getLeaves = (params: any) => request.get('/leaves', { params })
-export const updateLeave = (id: number, data: any) => request.put(`/leaves/${id}`, data)
-export const exportLeaves = () => request.get('/leaves/export', { responseType: 'blob' })
-
-// 查寝
-export const batchDormCheck = (data: any) => request.post('/dorm-check/batch', data)
-export const getDormCheck = (params: any) => request.get('/dorm-check', { params })
-export const exportDormCheck = () => request.get('/dorm-check/export', { responseType: 'blob' })
-
-// 纪律
-export const createDiscipline = (data: any) => request.post('/discipline', data)
-export const getDiscipline = (params: any) => request.get('/discipline', { params })
-export const exportDiscipline = () => request.get('/discipline/export', { responseType: 'blob' })
-
 // 成绩
 export const getCourses = (params: any) => request.get('/courses', { params })
 export const createCourse = (data: any) => request.post('/courses', data)
@@ -62,10 +46,16 @@ export const importScores = (formData: FormData) => request.post('/scores/import
 export const exportScores = (params: any) =>
   request.get('/scores/export', { params, responseType: 'blob' })
 
-// 预警/补考/荣誉
-export const getAlerts = (params: any) => request.get('/alerts', { params })
-export const exportAlerts = (params: any) =>
-  request.get('/alerts/export', { params, responseType: 'blob' })
+// 综合素质评价
+export const getQuality = (params: any) => request.get('/quality', { params })
+export const evaluateQuality = (data: any) => request.post('/quality/evaluate', data)
+export const manualQuality = (data: any) => request.post('/quality/manual', data)
+export const deleteQuality = (studentId: number, semester: string) =>
+  request.delete(`/quality/${studentId}`, { params: { semester } })
+export const exportQuality = (params: any) =>
+  request.get('/quality/export', { params, responseType: 'blob' })
+
+// 补考/荣誉
 export const getMakeup = (params: any) => request.get('/makeup', { params })
 export const createMakeup = (data: any) => request.post('/makeup', data)
 export const updateMakeup = (id: number, data: any) => request.put(`/makeup/${id}`, data)

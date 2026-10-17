@@ -35,23 +35,13 @@
     </el-row>
 
     <el-row :gutter="20">
-      <el-col :span="12">
+      <el-col :span="24">
         <div class="chart-card">
           <h3>旷课次数 Top 榜</h3>
           <el-table :data="rankings.absent_top" size="small" empty-text="暂无数据">
             <el-table-column type="index" label="#" width="50" />
             <el-table-column prop="name" label="姓名" />
             <el-table-column prop="count" label="旷课次数" width="100" />
-          </el-table>
-        </div>
-      </el-col>
-      <el-col :span="12">
-        <div class="chart-card">
-          <h3>晚归/未归 Top 榜</h3>
-          <el-table :data="rankings.dorm_top" size="small" empty-text="暂无数据">
-            <el-table-column type="index" label="#" width="50" />
-            <el-table-column prop="name" label="姓名" />
-            <el-table-column prop="count" label="晚归/未归次数" width="120" />
           </el-table>
         </div>
       </el-col>
@@ -65,7 +55,7 @@ import * as echarts from 'echarts'
 import { getOverview, getAttendanceTrend, getScoreDistribution, getRankings } from '@/api'
 
 const overview = ref<any>({})
-const rankings = ref<any>({ absent_top: [], dorm_top: [] })
+const rankings = ref<any>({ absent_top: [] })
 const trendRef = ref()
 const distRef = ref()
 

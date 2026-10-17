@@ -11,7 +11,6 @@ from app.core.response import ok
 from app.models import (
     AttendanceRecord,
     Course,
-    DormCheck,
     ScoreRecord,
     StudentProfile,
     SysUser,
@@ -141,15 +140,6 @@ def rankings(user: SysUser = Depends(get_current_user), db: Session = Depends(ge
         .limit(10)
         .all()
     )
-    # 晚归/未归 Top
-    dorm = (
-        db.query(DormCheck.student_id, func.count().label("cnt"))
-        .filter(DormCheck.status.in_(["LATE_BACK", "NOT_IN"]))
-        .group_by(DormCheck.student_id)
-        .order_by(func.count().desc())
-        .limit(10)
-        .all()
-    )
 
     def _name(sid):
         s = db.get(StudentProfile, sid)
@@ -158,6 +148,5 @@ def rankings(user: SysUser = Depends(get_current_user), db: Session = Depends(ge
     return ok(
         {
             "absent_top": [{"student_id": x[0], "name": _name(x[0]), "count": x[1]} for x in absent],
-            "dorm_top": [{"student_id": x[0], "name": _name(x[0]), "count": x[1]} for x in dorm],
         }
     )

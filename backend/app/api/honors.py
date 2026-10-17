@@ -1,4 +1,4 @@
-"""学业预警、补考重修、荣誉（竞赛/证书）接口（M3）"""
+"""补考重修、荣誉（竞赛/证书）接口（M3）"""
 from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
@@ -7,12 +7,10 @@ from app.core.database import get_db
 from app.core.deps import get_current_user, write_audit
 from app.core.response import BizError, ok
 from app.models import (
-    AttendanceRecord,
     Certificate,
     CompetitionAward,
     Course,
     MakeupTrack,
-    ScoreRecord,
     StudentProfile,
     SysUser,
 )
@@ -24,113 +22,7 @@ from app.schemas import (
 )
 from app.utils import export_rows_to_xlsx
 
-router = APIRouter(tags=["预警与荣誉"])
-
-
-# ---------- 学业预警 ----------
-@router.get("/alerts")
-def list_alerts(
-    semester: str | None = None,
-    user: SysUser = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    """学业预警名单（含原因标签）"""
-    students = (
-        db.query(StudentProfile)
-        .filter(StudentProfile.deleted_at.is_(None))
-        .order_by(StudentProfile.student_no)
-        .all()
-    )
-    # 当前学期默认取最新学期
-    if semester is None:
-        latest = db.query(Course).order_by(Course.semester.desc()).first()
-        semester = latest.semester if latest else ""
-    courses = db.query(Course).filter(Course.semester == semester).all()
-    course_ids = [c.id for c in courses]
-
-    result = []
-    for s in students:
-        scores = db.query(ScoreRecord).filter(
-            ScoreRecord.student_id == s.id, ScoreRecord.semester == semester
-        ).all()
-        valid = [sc.score for sc in scores if sc.score is not None]
-        fail_count = sum(1 for v in valid if v < 60)
-        avg = sum(valid) / len(valid) if valid else None
-
-        # 上一学期均分
-        semesters = sorted(
-            {c.semester for c in db.query(Course).all() if c.semester < semester}
-        )
-        prev_avg = None
-        if semesters:
-            prev_sem = semesters[-1]
-            prev_scores = db.query(ScoreRecord).filter(
-                ScoreRecord.student_id == s.id, ScoreRecord.semester == prev_sem
-            ).all()
-            prev_valid = [sc.score for sc in prev_scores if sc.score is not None]
-            if prev_valid:
-                prev_avg = sum(prev_valid) / len(prev_valid)
-
-        # 旷课节次
-        absent_count = (
-            db.query(AttendanceRecord)
-            .filter(
-                AttendanceRecord.student_id == s.id,
-                AttendanceRecord.status == "ABSENT",
-            )
-            .count()
-        )
-
-        tags = []
-        if fail_count >= 3:
-            tags.append("重点预警")
-        elif fail_count >= 1:
-            tags.append("挂科")
-        if prev_avg is not None and avg is not None and (avg - prev_avg) <= -15:
-            tags.append("滑坡")
-        if absent_count >= 5:
-            tags.append("出勤预警")
-
-        result.append(
-            {
-                "student_id": s.id,
-                "student_name": s.name,
-                "student_no": s.student_no,
-                "semester": semester,
-                "fail_count": fail_count,
-                "average": round(avg, 2) if avg is not None else None,
-                "prev_average": round(prev_avg, 2) if prev_avg is not None else None,
-                "absent_count": absent_count,
-                "tags": tags,
-                "level": "high" if "重点预警" in tags else ("mid" if tags else "none"),
-            }
-        )
-
-    return ok(result)
-
-
-@router.get("/alerts/export")
-def export_alerts(
-    semester: str | None = None,
-    user: SysUser = Depends(get_current_user),
-    db: Session = Depends(get_db),
-):
-    alerts = list_alerts(semester=semester, user=user, db=db)["data"]
-    headers = ["学号", "姓名", "学期", "挂科门数", "平均分", "上学期均分", "旷课节次", "预警标签"]
-    rows = [
-        [
-            a["student_no"], a["student_name"], a["semester"], a["fail_count"],
-            a["average"], a["prev_average"], a["absent_count"], "、".join(a["tags"]),
-        ]
-        for a in alerts
-        if a["tags"]
-    ]
-    content = export_rows_to_xlsx(headers, rows, "预警名单")
-    return Response(
-        content=content,
-        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        headers={"Content-Disposition": "attachment; filename=alerts.xlsx"},
-    )
+router = APIRouter(tags=["补考与荣誉"])
 
 
 # ---------- 补考重修 ----------

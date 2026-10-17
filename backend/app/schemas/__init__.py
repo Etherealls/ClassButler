@@ -92,43 +92,6 @@ class AttendanceBatchRequest(BaseModel):
     remark: Optional[str] = None
 
 
-# ---------- 请假 ----------
-class LeaveCreate(BaseModel):
-    student_id: int
-    leave_type: str
-    start_time: datetime
-    end_time: datetime
-    duration_hours: float
-    destination: Optional[str] = None
-    reason: str
-    attachment_url: Optional[str] = None
-    note: Optional[str] = None
-
-
-class LeaveUpdate(BaseModel):
-    status: Optional[str] = None
-    note: Optional[str] = None
-    end_time: Optional[datetime] = None
-
-
-# ---------- 查寝 ----------
-class DormCheckBatchRequest(BaseModel):
-    check_date: date
-    # student_id -> status 映射
-    records: dict[int, str] = {}
-    remark: Optional[str] = None
-
-
-# ---------- 纪律 ----------
-class DisciplineCreate(BaseModel):
-    student_id: int
-    category: str
-    occur_time: datetime
-    location: Optional[str] = None
-    fact: str
-    result: Optional[str] = None
-
-
 # ---------- 课程 / 成绩 ----------
 class CourseCreate(BaseModel):
     course_name: str
@@ -206,3 +169,24 @@ class DutyScheduleCreate(BaseModel):
 # ---------- 账号 ----------
 class AccountUpdate(BaseModel):
     phone: Optional[str] = None
+
+
+# ---------- 综合素质评价 ----------
+class QualityEvaluateRequest(BaseModel):
+    """按等级批量生成得分。level -> 等级；student_ids -> 可选，缺省全班级"""
+    semester: str
+    level: str
+    student_ids: Optional[list[int]] = None
+
+
+class QualityManualScore(BaseModel):
+    """手动录入单个学生五项得分"""
+    student_id: int
+    semester: str
+    level: Optional[str] = None
+    moral: float = 0
+    intellect: float = 0
+    sport: float = 0
+    art: float = 0
+    labor: float = 0
+    note: Optional[str] = None

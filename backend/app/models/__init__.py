@@ -161,48 +161,6 @@ class AttendanceRecord(Base, TimestampMixin):
     )
 
 
-class LeaveRequest(Base, TimestampMixin):
-    __tablename__ = "leave_request"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    student_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    leave_type: Mapped[str] = mapped_column(String(16), nullable=False)
-    start_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    end_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    duration_hours: Mapped[float] = mapped_column(nullable=False)
-    destination: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    reason: Mapped[str] = mapped_column(String(500), nullable=False)
-    attachment_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    status: Mapped[str] = mapped_column(String(16), default="LEAVING")
-    note: Mapped[str | None] = mapped_column(String(255), nullable=True)
-
-
-class DormCheck(Base, TimestampMixin):
-    __tablename__ = "dorm_check"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    student_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    room_no: Mapped[str] = mapped_column(String(16), nullable=False)
-    check_date: Mapped[str] = mapped_column(Date, nullable=False)
-    status: Mapped[str] = mapped_column(String(16), nullable=False)
-    photo_url: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    remark: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    checker_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
-
-class DisciplineRecord(Base, TimestampMixin):
-    __tablename__ = "discipline_record"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    student_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    category: Mapped[str] = mapped_column(String(32), nullable=False)
-    occur_time: Mapped[datetime] = mapped_column(DateTime, nullable=False)
-    location: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    fact: Mapped[str] = mapped_column(String(500), nullable=False)
-    result: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    recorder_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
-
-
 class Course(Base, TimestampMixin):
     __tablename__ = "course"
 
@@ -273,3 +231,26 @@ class SysAuditLog(Base):
     detail: Mapped[str | None] = mapped_column(Text, nullable=True)
     ip: Mapped[str | None] = mapped_column(String(45), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.now)
+
+
+class QualityEvaluation(Base, TimestampMixin):
+    """综合素质评价（德育/智育/体育/美育/劳育）"""
+
+    __tablename__ = "quality_evaluation"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    student_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    semester: Mapped[str] = mapped_column(String(16), nullable=False)
+    level: Mapped[str] = mapped_column(String(8), nullable=False)  # 优秀/良好/合格/不合格
+    moral: Mapped[float] = mapped_column(nullable=False, default=0)    # 德育
+    intellect: Mapped[float] = mapped_column(nullable=False, default=0)  # 智育
+    sport: Mapped[float] = mapped_column(nullable=False, default=0)    # 体育
+    art: Mapped[float] = mapped_column(nullable=False, default=0)     # 美育
+    labor: Mapped[float] = mapped_column(nullable=False, default=0)   # 劳育
+    total: Mapped[float] = mapped_column(nullable=False, default=0)   # 合计
+    rank: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 班级排名
+    note: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("student_id", "semester", name="uk_stu_quality_sem"),
+    )
