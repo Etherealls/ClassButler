@@ -11,8 +11,19 @@ from app.core.response import BizError, ok
 from app.models import ClassInfo, QualityEvaluation, StudentProfile, SysUser
 from app.schemas import QualityEvaluateRequest, QualityManualScore
 from app.utils import export_rows_to_xlsx
+from app.utils.semester import build_semester_info
 
 router = APIRouter(tags=["综合素质评价"])
+
+
+def _check_editable_semester(user: SysUser, semester: str):
+    """校验学期是否为当前可编辑学期（仅当前学期可修改）"""
+    info = build_semester_info(user.start_semester)
+    editable = info.get("editable_semester")
+    if editable is None:
+        raise BizError("请先在账号设置中填写开始担任班主任的学期", 400)
+    if semester != editable:
+        raise BizError("只能修改当前学期，不能修改其他学期", 400)
 
 
 def _get_class_id(db: Session, user: SysUser) -> int:
@@ -207,6 +218,7 @@ def evaluate_quality(
     """按等级（或按等级+排名）为指定学生（缺省全班级）自动生成五项整数得分并排名"""
     if body.level not in LEVEL_RANGE:
         raise BizError("无效的评价等级", 400)
+    _check_editable_semester(user, body.semester)
     cid = _get_class_id(db, user)
     q = db.query(StudentProfile).filter(
         StudentProfile.class_id == cid, StudentProfile.deleted_at.is_(None)
@@ -278,6 +290,7 @@ def manual_quality(
     s = db.get(StudentProfile, body.student_id)
     if s is None or s.deleted_at is not None:
         raise BizError("学生不存在", 404)
+    _check_editable_semester(user, body.semester)
     # 单项得分四舍五入为整数，并校验范围
     moral = int(round(body.moral))
     intellect = int(round(body.intellect))

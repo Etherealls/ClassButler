@@ -1,7 +1,9 @@
 <template>
   <div class="page-container">
     <div class="toolbar">
-      <el-input v-model="semester" placeholder="学期，如 2024-2025-1" style="width: 180px" />
+      <el-select v-model="semester" placeholder="选择学期" style="width: 220px" @change="load">
+        <el-option v-for="s in semesters" :key="s.value" :label="s.label" :value="s.value" :disabled="!s.editable" />
+      </el-select>
       <el-button type="primary" @click="load">查询</el-button>
       <div class="spacer"></div>
       <el-button @click="openCourseDialog">添加课程</el-button>
@@ -34,7 +36,11 @@
     <el-dialog v-model="courseDialog" title="添加课程" width="420px">
       <el-form :model="courseForm" label-width="90px">
         <el-form-item label="课程名" required><el-input v-model="courseForm.course_name" /></el-form-item>
-        <el-form-item label="学期" required><el-input v-model="courseForm.semester" placeholder="如 2024-2025-1" /></el-form-item>
+        <el-form-item label="学期" required>
+          <el-select v-model="courseForm.semester" style="width: 100%">
+            <el-option v-for="s in semesters" :key="s.value" :label="s.label" :value="s.value" :disabled="!s.editable" />
+          </el-select>
+        </el-form-item>
         <el-form-item label="学分"><el-input-number v-model="courseForm.credit" :min="0" :max="20" /></el-form-item>
       </el-form>
       <template #footer><el-button @click="courseDialog = false">取消</el-button><el-button type="primary" @click="saveCourse">保存</el-button></template>
@@ -45,9 +51,10 @@
 <script setup lang="ts">
 import { onMounted, reactive, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getScores, createCourse, importScores, exportScores } from '@/api'
+import { getScores, createCourse, importScores, exportScores, getSemesters } from '@/api'
 
 const semester = ref('')
+const semesters = ref<any[]>([])
 const students = ref<any[]>([])
 const courses = ref<any[]>([])
 const stats = ref<any>({})
@@ -56,7 +63,7 @@ const courseDialog = ref(false)
 const courseForm = reactive<any>({ credit: 1 })
 
 const load = async () => {
-  if (!semester.value) { ElMessage.warning('请输入学期'); return }
+  if (!semester.value) { ElMessage.warning('请选择学期'); return }
   loading.value = true
   try {
     const res: any = await getScores({ semester: semester.value })
@@ -84,7 +91,7 @@ const saveCourse = async () => {
 }
 
 const handleImport = async (file: File) => {
-  if (!semester.value) { ElMessage.warning('请先输入学期'); return false }
+  if (!semester.value) { ElMessage.warning('请先选择学期'); return false }
   const fd = new FormData()
   fd.append('file', file)
   fd.append('semester', semester.value)
@@ -100,20 +107,23 @@ const handleImport = async (file: File) => {
 }
 
 const handleExport = async () => {
-  if (!semester.value) { ElMessage.warning('请输入学期'); return }
+  if (!semester.value) { ElMessage.warning('请选择学期'); return }
   const res: any = await exportScores({ semester: semester.value })
   const url = URL.createObjectURL(res.data)
   const a = document.createElement('a')
   a.href = url; a.download = `scores_${semester.value}.xlsx`; a.click(); URL.revokeObjectURL(url)
 }
 
-onMounted(() => {
-  // 默认取当前学期
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = now.getMonth() + 1
-  const sem = m >= 8 ? `${y}-${y + 1}-1` : `${y - 1}-${y}-2`
-  semester.value = sem
-  load()
+onMounted(async () => {
+  // 获取学期列表
+  const res: any = await getSemesters()
+  semesters.value = res.data.semesters
+  const cur = res.data.editable_semester || res.data.current_semester
+  if (cur) {
+    semester.value = cur
+    load()
+  } else {
+    ElMessage.warning('请先在账号设置中填写开始担任班主任的学期')
+  }
 })
 </script>

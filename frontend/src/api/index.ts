@@ -63,6 +63,7 @@ export const getHonorTop = () => request.get('/dashboard/honor-top')
 // 系统
 export const getAccount = () => request.get('/account')
 export const updateAccount = (data: any) => request.put('/account', data)
+export const getSemesters = () => request.get('/semesters')
 export const getAuditLogs = (params: any) => request.get('/audit-logs', { params })
 export const getBackups = () => request.get('/backups')
 export const createBackup = () => request.post('/backup')

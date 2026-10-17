@@ -34,6 +34,7 @@ class SysUser(Base, TimestampMixin):
     password_hash: Mapped[str] = mapped_column(String(128), nullable=False)
     class_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     phone: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    start_semester: Mapped[str | None] = mapped_column(String(16), nullable=True)  # 开始当班主任的学期，如 2024-2025-1
     must_change_pwd: Mapped[bool] = mapped_column(Boolean, default=True)
     status: Mapped[str] = mapped_column(String(16), default="ACTIVE")
 

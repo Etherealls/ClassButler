@@ -26,6 +26,7 @@ from app.models import (
 from app.schemas import AccountUpdate, ChangePasswordRequest
 from app.core.security import hash_password, verify_password
 from app.utils import do_backup, list_backups
+from app.utils.semester import build_semester_info
 
 router = APIRouter(tags=["系统底座"])
 
@@ -57,6 +58,7 @@ def get_account(user: SysUser = Depends(get_current_user), db: Session = Depends
             "phone": user.phone,
             "class_id": user.class_id,
             "class_name": cls.class_name if cls else None,
+            "start_semester": user.start_semester,
             "must_change_pwd": user.must_change_pwd,
         }
     )
@@ -71,9 +73,18 @@ def update_account(
 ):
     if body.phone is not None:
         user.phone = body.phone
+    if body.start_semester is not None:
+        user.start_semester = body.start_semester
     write_audit(db, "UPDATE", "sys_user", user.id, "更新账号信息", user.id, request.client.host if request.client else None)
     db.commit()
     return ok(None, message="已更新")
+
+
+@router.get("/semesters")
+def get_semesters(user: SysUser = Depends(get_current_user), db: Session = Depends(get_db)):
+    """返回班级学期列表、当前学期及可编辑状态"""
+    info = build_semester_info(user.start_semester)
+    return ok(info)
 
 
 @router.get("/audit-logs")

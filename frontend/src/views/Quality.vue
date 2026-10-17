@@ -1,7 +1,9 @@
 <template>
   <div class="page-container">
     <div class="toolbar">
-      <el-input v-model="semester" placeholder="学期，如 2024-2025-1" style="width: 180px" />
+      <el-select v-model="semester" placeholder="选择学期" style="width: 220px" @change="load">
+        <el-option v-for="s in semesters" :key="s.value" :label="s.label" :value="s.value" :disabled="!s.editable" />
+      </el-select>
       <el-select v-model="level" placeholder="评价等级" style="width: 140px">
         <el-option v-for="l in levels" :key="l" :label="l" :value="l" />
       </el-select>
@@ -69,16 +71,17 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
-import { getQuality, evaluateQuality, manualQuality, deleteQuality, exportQuality } from '@/api'
+import { getQuality, evaluateQuality, manualQuality, deleteQuality, exportQuality, getSemesters } from '@/api'
 
 const levels = ['优秀', '良好', '合格', '不合格']
 const semester = ref('')
+const semesters = ref<any[]>([])
 const level = ref('优秀')
 const list = ref<any[]>([])
 const loading = ref(false)
 
 const load = async () => {
-  if (!semester.value) { ElMessage.warning('请输入学期'); return }
+  if (!semester.value) { ElMessage.warning('请选择学期'); return }
   loading.value = true
   try {
     const res: any = await getQuality({ semester: semester.value })
@@ -99,7 +102,7 @@ const hasScore = (row: any) => {
 
 // 提交：分别处理"按排名/等级生成"与"按手动得分计算"
 const handleSubmit = async () => {
-  if (!semester.value) { ElMessage.warning('请输入学期'); return }
+  if (!semester.value) { ElMessage.warning('请选择学期'); return }
 
   const manualRows: any[] = []   // 填写了单素质得分的学生
   const rankRows: any[] = []     // 填写了班级排名的学生（选填等级）
@@ -171,18 +174,22 @@ const handleClear = async (row: any) => {
 }
 
 const handleExport = async () => {
-  if (!semester.value) { ElMessage.warning('请输入学期'); return }
+  if (!semester.value) { ElMessage.warning('请选择学期'); return }
   const res: any = await exportQuality({ semester: semester.value })
   const url = URL.createObjectURL(res.data)
   const a = document.createElement('a')
   a.href = url; a.download = `综合素质评价_${semester.value}.xlsx`; a.click(); URL.revokeObjectURL(url)
 }
 
-onMounted(() => {
-  const now = new Date()
-  const y = now.getFullYear()
-  const m = now.getMonth() + 1
-  semester.value = m >= 8 ? `${y}-${y + 1}-1` : `${y - 1}-${y}-2`
-  load()
+onMounted(async () => {
+  const res: any = await getSemesters()
+  semesters.value = res.data.semesters
+  const cur = res.data.editable_semester || res.data.current_semester
+  if (cur) {
+    semester.value = cur
+    load()
+  } else {
+    ElMessage.warning('请先在账号设置中填写开始担任班主任的学期')
+  }
 })
 </script>

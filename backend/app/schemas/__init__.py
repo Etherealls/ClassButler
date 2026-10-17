@@ -143,6 +143,7 @@ class DutyScheduleCreate(BaseModel):
 # ---------- 账号 ----------
 class AccountUpdate(BaseModel):
     phone: Optional[str] = None
+    start_semester: Optional[str] = None
 
 
 # ---------- 综合素质评价 ----------

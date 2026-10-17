@@ -9,8 +9,19 @@ from app.core.response import BizError, ok
 from app.models import Course, ScoreRecord, StudentProfile, SysUser
 from app.schemas import CourseCreate, ScoreUpdate
 from app.utils import export_rows_to_xlsx, parse_xlsx
+from app.utils.semester import build_semester_info
 
 router = APIRouter(tags=["成绩"])
+
+
+def _check_editable_semester(user: SysUser, semester: str):
+    """校验学期是否为当前可编辑学期（仅当前学期可修改）"""
+    info = build_semester_info(user.start_semester)
+    editable = info.get("editable_semester")
+    if editable is None:
+        raise BizError("请先在账号设置中填写开始担任班主任的学期", 400)
+    if semester != editable:
+        raise BizError("只能修改当前学期，不能修改其他学期", 400)
 
 
 # ---------- 课程 ----------
@@ -39,6 +50,7 @@ def create_course(
     user: SysUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _check_editable_semester(user, body.semester)
     c = Course(**body.model_dump())
     db.add(c)
     db.commit()
@@ -151,6 +163,7 @@ async def import_scores(
     user: SysUser = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
+    _check_editable_semester(user, semester)
     content = await file.read()
     rows = parse_xlsx(content)
     if not rows:

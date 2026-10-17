@@ -1,6 +1,24 @@
 <template>
   <div class="page-container">
     <div class="chart-card">
+      <h3>账号信息</h3>
+      <div class="toolbar">
+        <el-select v-model="startYear" placeholder="开始学年" style="width: 160px">
+          <el-option v-for="y in yearOptions" :key="y" :label="`${y}-${y + 1} 学年`" :value="y" />
+        </el-select>
+        <el-select v-model="startSeq" placeholder="学期" style="width: 140px">
+          <el-option label="第一学期" :value="1" />
+          <el-option label="第二学期" :value="2" />
+        </el-select>
+        <el-button type="primary" @click="handleSaveStartSemester">保存开始学期</el-button>
+      </div>
+      <p class="tip">
+        当前开始学期：<b>{{ account.start_semester ? startSemesterLabel(account.start_semester) : '未设置' }}</b>。
+        从该学期起向后共 10 个学期（5 个学年），将作为班级全部学期。设置后请重新登录以更新各处下拉框。
+      </p>
+    </div>
+
+    <div class="chart-card">
       <h3>数据管理</h3>
       <div class="toolbar">
         <el-button type="danger" @click="handleClearData">清除所有数据</el-button>
@@ -51,14 +69,34 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { getBackups, createBackup, getAuditLogs, clearData } from '@/api'
+import { getAccount, updateAccount, getBackups, createBackup, getAuditLogs, clearData } from '@/api'
 import { useUserStore } from '@/store/user'
 
 const router = useRouter()
 const userStore = useUserStore()
 
+const account = ref<any>({})
 const backups = ref<any[]>([])
 const logs = ref<any[]>([])
+
+const startYear = ref<number>(new Date().getFullYear())
+const startSeq = ref<number>(1)
+
+// 学年选项：当前年份前后 10 年
+const yearOptions = Array.from({ length: 20 }, (_, i) => new Date().getFullYear() - 5 + i)
+
+const startSemesterLabel = (sem: string) => {
+  const parts = sem.split('-')
+  const seq = Number(parts[parts.length - 1])
+  return `${parts[0]}-${parts[1]} 学年${seq === 1 ? '第一学期' : '第二学期'}`
+}
+
+const handleSaveStartSemester = async () => {
+  const sem = `${startYear.value}-${startYear.value + 1}-${startSeq.value}`
+  await updateAccount({ start_semester: sem })
+  ElMessage.success('开始学期已保存')
+  account.value.start_semester = sem
+}
 
 const clearDialog = ref(false)
 const countdown = ref(5)
@@ -104,6 +142,13 @@ const loadBackups = async () => { const res: any = await getBackups(); backups.v
 const loadLogs = async () => { const res: any = await getAuditLogs({ page: 1, size: 20 }); logs.value = res.data }
 
 onMounted(async () => {
+  const a: any = await getAccount()
+  account.value = a.data
+  if (account.value.start_semester) {
+    const parts = account.value.start_semester.split('-')
+    startYear.value = Number(parts[0])
+    startSeq.value = Number(parts[parts.length - 1])
+  }
   loadBackups()
   loadLogs()
 })
